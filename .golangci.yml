@@ -1,0 +1,143 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard   # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose        # HTTP 응답 body 미close
+    - errorlint        # %w 래핑 / errors.Is·As 오용
+    - noctx            # context 없는 HTTP 요청
+    - rowserrcheck     # rows.Err() 누락
+    - sqlclosecheck    # rows/stmt 미close
+    - nilerr           # err != nil 인데 nil 반환
+    - contextcheck     # 잘못된 context 전파
+    - gosec            # 보안 취약 패턴
+    - gocritic         # 일반적인 실수·스타일
+    - revive           # golint 후속
+    - misspell
+    - unconvert
+    - wastedassign
+    - usestdlibvars
+    - testifylint      # require/assert 오용
+    - depguard         # 아래 레이어 규칙 강제
+    - godot
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+
+    govet:
+      enable:
+        - shadow
+
+    gosec:
+      excludes:
+        - G104   # errcheck와 중복
+
+    revive:
+      rules:
+        - name: exported
+          disabled: true   # 내부 패키지 위주라 주석 강제는 과함
+        - name: var-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: unreachable-code
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+
+    # CLAUDE.md의 레이어 규칙을 기계적으로 강제한다.
+    depguard:
+      rules:
+        # sqlc 생성 타입은 repository/mysql 밖으로 새어 나가지 않는다.
+        sqlc-stays-in-repository:
+          files:
+            - "**/internal/service/**"
+            - "**/internal/handler/**"
+            - "**/internal/domain/**"
+            - "**/internal/middleware/**"
+          deny:
+            - pkg: golang-gin/internal/repository/mysql/sqlc
+              desc: "sqlc 생성 타입은 repository/mysql 안에서만 쓴다. domain 타입으로 매핑해 반환할 것."
+
+        # service/repository는 HTTP를 모른다.
+        http-stays-in-handler:
+          files:
+            - "**/internal/service/**"
+            - "**/internal/repository/**"
+          deny:
+            - pkg: github.com/gin-gonic/gin
+              desc: "service/repository는 *gin.Context를 받지 않는다. context.Context만 받는다."
+
+        # domain은 다른 internal 패키지를 import하지 않는다.
+        domain-has-no-deps:
+          files:
+            - "**/internal/domain/**"
+          deny:
+            - pkg: golang-gin/internal/handler
+              desc: "domain은 다른 internal 패키지를 import하지 않는다."
+            - pkg: golang-gin/internal/service
+              desc: "domain은 다른 internal 패키지를 import하지 않는다."
+            - pkg: golang-gin/internal/repository
+              desc: "domain은 다른 internal 패키지를 import하지 않는다."
+
+        # 역방향 import 금지.
+        no-upward-import:
+          files:
+            - "**/internal/repository/**"
+          deny:
+            - pkg: golang-gin/internal/service
+              desc: "repository는 service를 import하지 않는다."
+            - pkg: golang-gin/internal/handler
+              desc: "repository는 handler를 import하지 않는다."
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+    paths:
+      # sqlc 생성 코드는 손대지 않으므로 검사도 하지 않는다.
+      - internal/repository/mysql/sqlc
+    rules:
+      # 테스트에서는 과한 규칙을 푼다.
+      - path: (_test\.go|/testutil/)
+        linters:
+          - gosec
+          - errcheck
+          - noctx
+          - contextcheck
+          - godot
+      # main은 초기화 실패 시 종료가 정상이다.
+      - path: cmd/api/main\.go
+        linters:
+          - gocritic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - golang-gin
+  exclusions:
+    generated: lax
+    paths:
+      - internal/repository/mysql/sqlc
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
