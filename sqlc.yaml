@@ -1,0 +1,15 @@
+version: "2"
+
+sql:
+  - engine: mysql
+    schema: migrations
+    queries: db/query
+    gen:
+      go:
+        package: sqlc
+        out: internal/repository/mysql/sqlc
+        sql_package: database/sql
+        emit_empty_slices: true
+        emit_interface: false
+        emit_json_tags: false
+        emit_prepared_queries: false

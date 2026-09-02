@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [release]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+
+      - name: gofmt 확인
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "포맷되지 않은 파일:"
+            echo "$out"
+            exit 1
+          fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go build ./...
+
+      # ubuntu 러너에는 Docker가 있으므로 testcontainers 통합 테스트도 함께 돈다.
+      - run: go test -race -count=1 ./...
+
+  sqlc:
+    name: sqlc 생성 코드 최신 여부
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.30.0"
+
+      # sqlc.yaml이 아직 없으면 건너뛴다.
+      - name: sqlc diff
+        run: |
+          if [ -f sqlc.yaml ]; then
+            sqlc diff
+          else
+            echo "sqlc.yaml 없음 — 건너뜀"
+          fi

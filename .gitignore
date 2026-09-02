@@ -1,0 +1,5 @@
+.env
+.env.test
+/bin/
+CLAUDE.md
+.vscode
