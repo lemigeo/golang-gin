@@ -1,0 +1,30 @@
+# 로컬 개발용 MySQL. 고정 포트 3306에 뜨므로 GUI 클라이언트가 항상 같은 주소로 붙는다.
+# 통합 테스트가 쓰는 testcontainers MySQL과는 완전히 별개다 — 그쪽은 매번 랜덤 포트에
+# 뜨고 테스트가 끝나면 사라진다. 이 컨테이너의 데이터는 테스트에 영향을 주지 않는다.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: golang-gin-mysql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"   # 루프백에만 바인딩. 외부에 노출하지 않는다.
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: golang-gin
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  mysql-data:

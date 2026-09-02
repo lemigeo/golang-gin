@@ -30,3 +30,13 @@ func HTTPAddr() (string, error) {
 
 	return net.JoinHostPort(host, port), nil
 }
+
+// DBDSN returns the MySQL DSN from DB_DSN. It is required: an API that cannot
+// reach its database should fail at boot, not on the first request.
+func DBDSN() (string, error) {
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		return "", errors.New("DB_DSN is required")
+	}
+	return dsn, nil
+}
