@@ -49,6 +49,12 @@ linters:
         - name: context-keys-type
         - name: unreachable-code
 
+    godot:
+      # swag 주석(@Router, @Success …)은 마침표로 끝나지 않는다. 이건 산문이
+      # 아니라 코드 생성기의 입력이라 문장 규칙을 적용할 대상이 아니다.
+      exclude:
+        - '^\s*@'
+
     gocritic:
       enabled-tags:
         - diagnostic

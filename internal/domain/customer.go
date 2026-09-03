@@ -109,14 +109,74 @@ func NewCustomerSocialResponse(s *CustomerSocial) CustomerSocialResponse {
 	}
 }
 
+// MediaName is how a customer signed up: with an email and password, or
+// through a social provider.
+type MediaName string
+
+const (
+	MediaEmail MediaName = "email"
+	MediaKakao MediaName = "kakao"
+	MediaNaver MediaName = "naver"
+)
+
+// IsSocial reports whether signing up with m requires verifying a provider
+// token instead of storing a password.
+func (m MediaName) IsSocial() bool {
+	return m == MediaKakao || m == MediaNaver
+}
+
+// SocialProfile is what a provider returns once a token is verified. Only the
+// fields this service actually uses are kept.
+type SocialProfile struct {
+	ID    string
+	Email string
+	Name  string
+}
+
 // SignUpRequest is the JSON body accepted at POST /auth/signup.
+//
+// One endpoint serves both flows, and mediaName decides which fields are
+// required: "email" needs a password, a social provider needs the media id and
+// the token proving it. The bindings encode exactly that, so an impossible
+// combination is rejected before any of it reaches the service.
 //
 // The password bounds are deliberate: a minimum keeps trivially guessable
 // values out, and a maximum stops a huge input from turning Argon2id into a
 // denial-of-service vector. Argon2id has no 72-byte truncation issue, so the
 // ceiling is generous.
 type SignUpRequest struct {
-	Email    string `json:"email" binding:"required,email,max=255"`
-	Password string `json:"password" binding:"required,min=8,max=128"`
-	Name     string `json:"name" binding:"required,max=64"`
+	Email     string    `json:"email" binding:"required,email,max=255"`
+	MediaName MediaName `json:"mediaName" binding:"required,oneof=email kakao naver"`
+
+	// Email sign-up only.
+	Password string `json:"password" binding:"required_if=MediaName email,omitempty,min=8,max=128"`
+
+	// Social sign-up only. The name comes from the verified profile, so it is
+	// required only for the email flow.
+	Name       string `json:"name" binding:"required_if=MediaName email,max=64"`
+	MediaID    string `json:"mediaId" binding:"required_unless=MediaName email,max=255"`
+	MediaToken string `json:"mediaToken" binding:"required_unless=MediaName email"`
+}
+
+// LoginRequest is the JSON body accepted at POST /auth/login.
+//
+// Like sign-up, one endpoint serves both flows and mediaName picks which
+// fields are required.
+type LoginRequest struct {
+	MediaName MediaName `json:"mediaName" binding:"required,oneof=email kakao naver"`
+
+	// Email login only.
+	Email    string `json:"email" binding:"required_if=MediaName email,omitempty,email,max=255"`
+	Password string `json:"password" binding:"required_if=MediaName email,omitempty,max=128"`
+
+	// Social login only.
+	MediaID    string `json:"mediaId" binding:"required_unless=MediaName email,max=255"`
+	MediaToken string `json:"mediaToken" binding:"required_unless=MediaName email"`
+}
+
+// LoginResponse carries the session the client will send back on later calls.
+type LoginResponse struct {
+	Token     string           `json:"token"`
+	ExpiresAt time.Time        `json:"expires_at"`
+	Customer  CustomerResponse `json:"customer"`
 }

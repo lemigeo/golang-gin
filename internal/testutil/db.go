@@ -73,12 +73,18 @@ func runWithDB(m *testing.M) (int, error) {
 	}
 	defer func() { _ = testDB.Close() }()
 
-	if err := waitForDB(ctx, testDB); err != nil {
-		return 0, err
+	if waitErr := waitForDB(ctx, testDB); waitErr != nil {
+		return 0, waitErr
 	}
-	if err := migrateUp(testDB); err != nil {
-		return 0, err
+	if migrateErr := migrateUp(testDB); migrateErr != nil {
+		return 0, migrateErr
 	}
+
+	stopRedis, redisErr := startRedis(ctx)
+	if redisErr != nil {
+		return 0, redisErr
+	}
+	defer stopRedis()
 
 	return m.Run(), nil
 }

@@ -26,5 +26,17 @@ services:
       retries: 20
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    container_name: golang-gin-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"   # 루프백에만 바인딩.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   mysql-data:

@@ -8,6 +8,7 @@ package sqlc
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const countCustomersByStatus = `-- name: CountCustomersByStatus :one
@@ -87,6 +88,64 @@ func (q *Queries) GetCustomerByEmail(ctx context.Context, email string) (Custome
 	return i, err
 }
 
+const getCustomerByMedia = `-- name: GetCustomerByMedia :one
+SELECT c.id, c.email, c.name, c.status, c.created_at, c.updated_at
+FROM customer c
+JOIN customer_social s ON s.customer_id = c.id
+WHERE s.media_name = ? AND s.media_id = ?
+`
+
+type GetCustomerByMediaParams struct {
+	MediaName string
+	MediaID   string
+}
+
+func (q *Queries) GetCustomerByMedia(ctx context.Context, arg GetCustomerByMediaParams) (Customer, error) {
+	row := q.db.QueryRowContext(ctx, getCustomerByMedia, arg.MediaName, arg.MediaID)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getCustomerWithPasswordByEmail = `-- name: GetCustomerWithPasswordByEmail :one
+SELECT c.id, c.email, c.name, c.status, c.created_at, c.updated_at, p.password_hash
+FROM customer c
+JOIN customer_password p ON p.customer_id = c.id
+WHERE c.email = ?
+`
+
+type GetCustomerWithPasswordByEmailRow struct {
+	ID           uint64
+	Email        string
+	Name         string
+	Status       uint8
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	PasswordHash string
+}
+
+func (q *Queries) GetCustomerWithPasswordByEmail(ctx context.Context, email string) (GetCustomerWithPasswordByEmailRow, error) {
+	row := q.db.QueryRowContext(ctx, getCustomerWithPasswordByEmail, email)
+	var i GetCustomerWithPasswordByEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const listCustomersByStatus = `-- name: ListCustomersByStatus :many
 SELECT id, email, name, status, created_at, updated_at
 FROM customer
@@ -144,6 +203,22 @@ type UpdateCustomerNameParams struct {
 
 func (q *Queries) UpdateCustomerName(ctx context.Context, arg UpdateCustomerNameParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, updateCustomerName, arg.Name, arg.ID)
+}
+
+const updateCustomerProfile = `-- name: UpdateCustomerProfile :execresult
+UPDATE customer
+SET name = ?, email = ?
+WHERE id = ?
+`
+
+type UpdateCustomerProfileParams struct {
+	Name  string
+	Email string
+	ID    uint64
+}
+
+func (q *Queries) UpdateCustomerProfile(ctx context.Context, arg UpdateCustomerProfileParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, updateCustomerProfile, arg.Name, arg.Email, arg.ID)
 }
 
 const updateCustomerStatus = `-- name: UpdateCustomerStatus :execresult

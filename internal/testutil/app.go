@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,9 +24,28 @@ type App struct {
 
 // NewApp builds the engine exactly as production does, on top of db.
 func NewApp(t *testing.T, db mysql.DB) *App {
+	return NewAppWithConfig(t, db, handler.Config{})
+}
+
+// NewAppWithConfig is NewApp with the wiring config, so a test can point the
+// OAuth client at a stub provider instead of the real one.
+func NewAppWithConfig(t *testing.T, db mysql.DB, cfg handler.Config) *App {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	return &App{t: t, engine: handler.NewEngine(db)}
+
+	// Session wiring is the same for every test unless one overrides it, so
+	// individual tests do not have to know Redis exists.
+	if cfg.Redis == nil {
+		cfg.Redis = testRedis
+	}
+	if len(cfg.SessionSecret) == 0 {
+		cfg.SessionSecret = []byte("test-secret-that-is-long-enough-32b")
+	}
+	if cfg.SessionTTL == 0 {
+		cfg.SessionTTL = 20 * time.Minute
+	}
+
+	return &App{t: t, engine: handler.NewEngine(db, cfg)}
 }
 
 func (a *App) GET(path string) *httptest.ResponseRecorder {
