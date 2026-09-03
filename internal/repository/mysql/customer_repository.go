@@ -126,6 +126,60 @@ func (r *CustomerRepository) Delete(ctx context.Context, id uint64) error {
 	return requireAffected(res, domain.ErrCustomerNotFound)
 }
 
+// FindByMedia returns the customer linked to a social account.
+func (r *CustomerRepository) FindByMedia(ctx context.Context, mediaName, mediaID string) (*domain.Customer, error) {
+	row, err := r.q.GetCustomerByMedia(ctx, sqlc.GetCustomerByMediaParams{
+		MediaName: mediaName,
+		MediaID:   mediaID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrCustomerNotFound
+		}
+		return nil, fmt.Errorf("get customer by media: %w", err)
+	}
+	return toDomainCustomer(row), nil
+}
+
+// FindWithPasswordByEmail returns the customer and the stored hash in one
+// query. The hash is returned separately rather than on the entity so it
+// cannot ride along into a response by accident.
+func (r *CustomerRepository) FindWithPasswordByEmail(ctx context.Context, email string) (*domain.Customer, string, error) {
+	row, err := r.q.GetCustomerWithPasswordByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, "", domain.ErrCustomerNotFound
+		}
+		return nil, "", fmt.Errorf("get customer with password: %w", err)
+	}
+
+	customer := &domain.Customer{
+		ID:        row.ID,
+		Email:     row.Email,
+		Name:      row.Name,
+		Status:    domain.CustomerStatus(row.Status),
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+	}
+	return customer, row.PasswordHash, nil
+}
+
+// UpdateProfile writes the name and email a provider reported.
+func (r *CustomerRepository) UpdateProfile(ctx context.Context, id uint64, name, email string) error {
+	res, err := r.q.UpdateCustomerProfile(ctx, sqlc.UpdateCustomerProfileParams{
+		Name:  name,
+		Email: email,
+		ID:    id,
+	})
+	if err != nil {
+		if isDuplicate(err, "uk_customer_email") {
+			return domain.ErrEmailTaken
+		}
+		return fmt.Errorf("update customer profile: %w", err)
+	}
+	return requireAffected(res, domain.ErrCustomerNotFound)
+}
+
 func toDomainCustomer(row sqlc.Customer) *domain.Customer {
 	return &domain.Customer{
 		ID:        row.ID,
