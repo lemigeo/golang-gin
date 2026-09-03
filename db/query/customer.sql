@@ -37,3 +37,20 @@ WHERE id = ?;
 -- name: DeleteCustomer :execresult
 DELETE FROM customer
 WHERE id = ?;
+
+-- name: GetCustomerByMedia :one
+SELECT c.id, c.email, c.name, c.status, c.created_at, c.updated_at
+FROM customer c
+JOIN customer_social s ON s.customer_id = c.id
+WHERE s.media_name = ? AND s.media_id = ?;
+
+-- name: GetCustomerWithPasswordByEmail :one
+SELECT c.id, c.email, c.name, c.status, c.created_at, c.updated_at, p.password_hash
+FROM customer c
+JOIN customer_password p ON p.customer_id = c.id
+WHERE c.email = ?;
+
+-- name: UpdateCustomerProfile :execresult
+UPDATE customer
+SET name = ?, email = ?
+WHERE id = ?;

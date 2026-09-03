@@ -6,7 +6,6 @@ Go + Gin REST API.
 - **마이그레이션**: golang-migrate
 - **모듈 경로**: `golang-gin`
 
-이 문서가 개발 규칙의 기준이다. `CLAUDE.md`는 이 문서를 가리킨다.
 
 ## 시작하기
 
@@ -170,6 +169,17 @@ func NewEngine(db sqlc.DBTX) *gin.Engine {
 - 이 두 엔드포인트는 인증 미들웨어를 타지 않는다.
 - DB나 외부 의존성을 건드리지 않는다. 순수하게 프로세스가 살아 있는지만 알린다.
 - DB 연결까지 확인하는 체크가 필요하면 `/health/ready`를 따로 추가한다. `/health`는 바꾸지 않는다.
+
+### API 문서
+
+**엔드포인트 명세는 이 문서에 쓰지 않는다.** 경로, 요청 필드, 응답 코드는 핸들러의 swag 주석이 유일한 출처이고, 문서는 거기서 생성한다. 문서를 두 곳에 두면 반드시 갈라지고, 갈라진 쪽이 README다.
+
+```bash
+swag init -g cmd/api/main.go -o docs   # docs/ 생성
+go run ./cmd/api                       # http://localhost:8080/swagger/index.html
+```
+
+설계 판단 — 왜 이렇게 되어 있는지 — 은 해당 핸들러의 주석에 있다. 예를 들어 가입 흐름이 왜 하나의 엔드포인트인지, 소셜 토큰 검증에서 무엇을 반드시 확인해야 하는지는 `internal/handler/auth_handler.go`의 `SignUp` 위 주석을 읽으면 된다. 이런 설명도 문서에 복제하지 않는다 — 코드를 고치는 사람이 보는 자리에 있어야 같이 갱신된다.
 
 ## 개발 규칙
 
@@ -531,6 +541,7 @@ CI를 통과시키려고 테스트를 skip 처리하거나 린터를 비활성�
 go run ./cmd/api          # 실행
 go build ./...            # 빌드
 sqlc generate             # 쿼리 → Go 코드 생성
+swag init -g cmd/api/main.go -o docs   # API 문서 생성
 sqlc vet                  # 쿼리 검증
 go test ./...             # 전체 테스트 (Docker 필요)
 go test -short ./...      # 컨테이너 없는 테스트만

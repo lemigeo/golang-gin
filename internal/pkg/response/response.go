@@ -59,6 +59,18 @@ func FromError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrInvalidCredential):
 		Error(c, http.StatusUnauthorized, "invalid email or password")
 
+	case errors.Is(err, domain.ErrSocialVerification):
+		Error(c, http.StatusUnauthorized, "social token verification failed")
+
+	case errors.Is(err, domain.ErrMediaIDMismatch):
+		Error(c, http.StatusUnauthorized, "media id does not match the verified account")
+
+	case errors.Is(err, domain.ErrUnsupportedMedia):
+		Error(c, http.StatusBadRequest, "unsupported media name")
+
+	case errors.Is(err, domain.ErrCustomerInactive):
+		Error(c, http.StatusForbidden, "customer is not active")
+
 	case errors.Is(err, domain.ErrInvalidStatus):
 		Error(c, http.StatusBadRequest, "invalid status")
 
