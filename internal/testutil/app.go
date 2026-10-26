@@ -20,6 +20,14 @@ import (
 type App struct {
 	t      *testing.T
 	engine *gin.Engine
+	token  string
+}
+
+// As returns a copy of the app that sends a bearer token on every request.
+func (a *App) As(token string) *App {
+	clone := *a
+	clone.token = token
+	return &clone
 }
 
 // NewApp builds the engine exactly as production does, on top of db.
@@ -56,6 +64,14 @@ func (a *App) POST(path, body string) *httptest.ResponseRecorder {
 	return a.do(http.MethodPost, path, body)
 }
 
+func (a *App) PUT(path, body string) *httptest.ResponseRecorder {
+	return a.do(http.MethodPut, path, body)
+}
+
+func (a *App) PATCH(path, body string) *httptest.ResponseRecorder {
+	return a.do(http.MethodPatch, path, body)
+}
+
 func (a *App) do(method, path, body string) *httptest.ResponseRecorder {
 	a.t.Helper()
 
@@ -65,6 +81,10 @@ func (a *App) do(method, path, body string) *httptest.ResponseRecorder {
 	} else {
 		req = httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+	}
+
+	if a.token != "" {
+		req.Header.Set("Authorization", "Bearer "+a.token)
 	}
 
 	rec := httptest.NewRecorder()
