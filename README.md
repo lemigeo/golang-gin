@@ -305,24 +305,35 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 ### 파일명
 
+초기 스키마는 **프로젝트 베이스라인**이라 티켓과 무관하게 한 파일로 둔다.
+
+```
+migrations/
+├── 000001_init_schema.up.sql     # 전체 테이블
+└── 000001_init_schema.down.sql
+```
+
+이후 변경은 **티켓 단위**로 추가한다.
+
 ```
 {배포순번4자리}{시퀀스2자리}_{티켓ID}_{설명}.up.sql
 {배포순번4자리}{시퀀스2자리}_{티켓ID}_{설명}.down.sql
 ```
 
 ```
-migrations/
-├── 000101_A1_create_customer.up.sql
-├── 000101_A1_create_customer.down.sql
-├── 000102_A1_create_customer_social.up.sql
-└── 000102_A1_create_customer_social.down.sql
+├── 000101_A4_add_coupon_issued_count.up.sql
+├── 000101_A4_add_coupon_issued_count.down.sql
+└── 000102_A4_backfill_issued_count.up.sql
 ```
 
 같은 티켓에서 나온 작업은 배포순번과 티켓 ID가 같아 한 배포 단위임이 파일 목록에서 바로 보인다.
 
-**version은 파일명 앞 숫자에서 선행 0을 제거한 정수다.** `000101` → `101`, `000102` → `102`. 아래 명령에 쓰는 숫자는 이 값이다.
+**version은 파일명 앞 숫자에서 선행 0을 제거한 정수다.** `000001` → `1`, `000101` → `101`. 아래 명령에 쓰는 숫자는 이 값이다.
 
-티켓 ID를 version이 아니라 이름 자리에 두는 이유는 golang-migrate의 version이 부호 없는 64비트 정수여야 하기 때문이다. `A1` 같은 영문 포함 티켓은 prefix가 될 수 없다.
+- 배포순번은 티켓마다 1씩 올린다. 시퀀스는 티켓 안에서 `01`부터, 티켓이 바뀌면 다시 `01`.
+- **version 숫자는 전역에서 유일해야 한다.** golang-migrate는 같은 version이 둘 이상이면 `ErrDuplicateMigration`으로 실행 자체가 실패한다. version은 맨 앞 연속된 숫자까지만 파싱되므로 배포순번과 시퀀스는 반드시 **붙여서** 쓴다 — `0001_01_...`처럼 구분자를 넣으면 두 파일이 모두 version `1`이 되어 충돌한다.
+- **티켓 ID는 version이 아니라 이름 자리에 둔다.** version은 부호 없는 64비트 정수여야 해서 `A4` 같은 영문 포함 티켓은 prefix가 될 수 없다. 이름 자리에 두면 티켓 체계가 바뀌어도 규칙이 깨지지 않고, `ls migrations/ | grep A4`로 티켓 단위 조회가 된다.
+- 한 티켓 안에서 순서가 중요한 작업은 시퀀스 번호로 순서를 보장한다.
 
 ### 명령어
 
@@ -336,7 +347,7 @@ export MIGRATE="migrate -path migrations -database mysql://$DB_DSN"
 |---|---|
 | 현재 버전 확인 | `$MIGRATE version` |
 | 전부 적용 | `$MIGRATE up` |
-| **특정 버전까지 적용** | `$MIGRATE goto 104` |
+| **특정 버전까지 적용** | `$MIGRATE goto 101` |
 | 특정 버전으로 되돌리기 | `$MIGRATE goto 102` |
 | 전부 되돌리기 | `$MIGRATE down -all` |
 
@@ -346,7 +357,7 @@ export MIGRATE="migrate -path migrations -database mysql://$DB_DSN"
 
 ```zsh
 $MIGRATE version   # 102 확인
-$MIGRATE goto 104
+$MIGRATE goto 101
 $MIGRATE version   # 104 확인
 ```
 
