@@ -68,6 +68,22 @@ func FromError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrUnsupportedMedia):
 		Error(c, http.StatusBadRequest, "unsupported media name")
 
+	case errors.Is(err, domain.ErrCouponNotActive),
+		errors.Is(err, domain.ErrCouponNotInPeriod),
+		errors.Is(err, domain.ErrIssueLimitReached),
+		errors.Is(err, domain.ErrPersonalLimitReached),
+		errors.Is(err, domain.ErrCouponNotIssuable):
+		Error(c, http.StatusConflict, err.Error())
+
+	case errors.Is(err, domain.ErrCouponNotFound):
+		Error(c, http.StatusNotFound, "coupon not found")
+
+	case errors.Is(err, domain.ErrInvalidDiscountValue):
+		Error(c, http.StatusBadRequest, domain.ErrInvalidDiscountValue.Error())
+
+	case errors.Is(err, domain.ErrInvalidPeriod):
+		Error(c, http.StatusBadRequest, domain.ErrInvalidPeriod.Error())
+
 	case errors.Is(err, domain.ErrCustomerInactive):
 		Error(c, http.StatusForbidden, "customer is not active")
 

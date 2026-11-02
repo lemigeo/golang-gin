@@ -5,8 +5,41 @@
 package sqlc
 
 import (
+	"database/sql"
 	"time"
 )
+
+type Coupon struct {
+	ID          uint64
+	Name        string
+	Description string
+	// 썸네일 이미지 URL. NULL이면 이미지 없음
+	ThumbnailUrl sql.NullString
+	// 1: 공개(다운로드), 2: 비공개(보상)
+	Type uint8
+	// 1: 금액, 2: 비율
+	DiscountType uint8
+	// discount_type=1이면 할인 금액, 2이면 할인 퍼센트
+	DiscountValue uint32
+	// 인당 발행 건수. NULL = 제한 없음
+	IssueLimitPerPerson sql.NullInt32
+	// 전체 발행 제한. NULL = 제한 없음
+	IssueLimit sql.NullInt32
+	// 단일 코드. NULL이면 코드 없이 발행되는 쿠폰
+	Code sql.NullString
+	// 최소 사용 금액. NULL = 제한 없음
+	MinPrice sql.NullInt32
+	// 발행 후 사용 가능 기간(분). NULL이면 ended_at까지
+	ValidPeriod sql.NullInt32
+	// 0: inactive, 1: active
+	Status uint8
+	// 시작일. NULL이면 즉시
+	StartedAt sql.NullTime
+	// 종료일. NULL이면 무기한
+	EndedAt   sql.NullTime
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 type Customer struct {
 	ID    uint64
@@ -14,6 +47,25 @@ type Customer struct {
 	Name  string
 	// 0: deleted, 1: active, 2: inactive
 	Status    uint8
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type CustomerCoupon struct {
+	ID         uint64
+	CustomerID uint64
+	CouponID   uint64
+	// 발급 시점의 coupon.discount_type 사본. 1: 금액, 2: 비율
+	DiscountType uint8
+	// 발급 시점의 coupon.discount_value 사본. 원본 쿠폰이 바뀌어도 이 값으로 계산한다
+	DiscountValue uint32
+	// 개별 발급 쿠폰번호. 유일하지 않다
+	Code sql.NullString
+	// 사용 시각. NULL이면 미사용
+	UsedAt sql.NullTime
+	// 발급 시각 + coupon.valid_period(분). NULL이면 원본 쿠폰의 ended_at을 따른다
+	ExpiredAt sql.NullTime
+	// 발급 시각
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
