@@ -76,9 +76,9 @@ type CouponInput struct {
 	// URL, which a plain length check would let through.
 	ThumbnailURL *string `json:"thumbnailUrl" binding:"omitempty,url,max=2048"`
 
-	Type        CouponType   `json:"type" binding:"required,oneof=1 2"`
-	DiscountType DiscountType `json:"discountType" binding:"required,oneof=1 2"`
-	DiscountValue uint32     `json:"discountValue" binding:"required,min=1,max=2147483647"`
+	Type          CouponType   `json:"type" binding:"required,oneof=1 2"`
+	DiscountType  DiscountType `json:"discountType" binding:"required,oneof=1 2"`
+	DiscountValue uint32       `json:"discountValue" binding:"required,min=1,max=2147483647"`
 
 	// Nullable columns. Omitting one stores NULL, which every one of these
 	// reads as "no limit".

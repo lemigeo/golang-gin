@@ -3,6 +3,8 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -26,11 +28,29 @@ func isCheckViolation(err error, name string) bool {
 // sqlc generates for nullable columns. Pointers keep "no limit" (NULL) and
 // "zero" distinguishable, which a plain uint32 would not.
 //
-// Callers must have bounded the value at MaxInt32 already; the request
-// bindings do that.
+// A nullable INT UNSIGNED column comes back as sql.NullInt32, so a value above
+// MaxInt32 cannot survive the round trip. The request bindings already cap
+// these fields, which is why this is an error rather than a clamp: a value
+// this large means validation was bypassed, and silently storing a different
+// number would be worse than refusing.
 
-func nullInt32(v *uint32) sql.NullInt32 {
+// ErrValueOutOfRange means a value cannot be stored in its column.
+var ErrValueOutOfRange = errors.New("value out of range for the column")
+
+// nullConv converts domain pointers to sql.Null* types, collecting the first
+// range error so a long parameter list stays readable at the call site.
+type nullConv struct {
+	err error
+}
+
+func (n *nullConv) int32(v *uint32) sql.NullInt32 {
 	if v == nil {
+		return sql.NullInt32{}
+	}
+	if *v > math.MaxInt32 {
+		if n.err == nil {
+			n.err = fmt.Errorf("%w: %d", ErrValueOutOfRange, *v)
+		}
 		return sql.NullInt32{}
 	}
 	return sql.NullInt32{Int32: int32(*v), Valid: true}

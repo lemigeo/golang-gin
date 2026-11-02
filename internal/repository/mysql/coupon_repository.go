@@ -25,22 +25,29 @@ func (r *CouponRepository) WithTx(db DB) *CouponRepository {
 }
 
 func (r *CouponRepository) Create(ctx context.Context, c *domain.Coupon) (uint64, error) {
-	res, err := r.q.CreateCoupon(ctx, sqlc.CreateCouponParams{
+	var conv nullConv
+
+	params := sqlc.CreateCouponParams{
 		Name:                c.Name,
 		Description:         c.Description,
 		ThumbnailUrl:        nullString(c.ThumbnailURL),
 		Type:                uint8(c.Type),
 		DiscountType:        uint8(c.DiscountType),
 		DiscountValue:       c.DiscountValue,
-		IssueLimitPerPerson: nullInt32(c.IssueLimitPerPerson),
-		IssueLimit:          nullInt32(c.IssueLimit),
+		IssueLimitPerPerson: conv.int32(c.IssueLimitPerPerson),
+		IssueLimit:          conv.int32(c.IssueLimit),
 		Code:                nullString(c.Code),
-		MinPrice:            nullInt32(c.MinPrice),
-		ValidPeriod:         nullInt32(c.ValidPeriod),
+		MinPrice:            conv.int32(c.MinPrice),
+		ValidPeriod:         conv.int32(c.ValidPeriod),
 		Status:              uint8(c.Status),
 		StartedAt:           nullTime(c.StartedAt),
 		EndedAt:             nullTime(c.EndedAt),
-	})
+	}
+	if conv.err != nil {
+		return 0, conv.err
+	}
+
+	res, err := r.q.CreateCoupon(ctx, params)
 	if err != nil {
 		// The CHECK constraints are the real guarantee; the service validates
 		// the same rules first so this is the belt to that braces.
@@ -65,7 +72,9 @@ func (r *CouponRepository) Create(ctx context.Context, c *domain.Coupon) (uint64
 
 // Update overwrites every writable column of one coupon.
 func (r *CouponRepository) Update(ctx context.Context, id uint64, c *domain.Coupon) error {
-	res, err := r.q.UpdateCoupon(ctx, sqlc.UpdateCouponParams{
+	var conv nullConv
+
+	params := sqlc.UpdateCouponParams{
 		ID:                  id,
 		Name:                c.Name,
 		Description:         c.Description,
@@ -73,15 +82,20 @@ func (r *CouponRepository) Update(ctx context.Context, id uint64, c *domain.Coup
 		Type:                uint8(c.Type),
 		DiscountType:        uint8(c.DiscountType),
 		DiscountValue:       c.DiscountValue,
-		IssueLimitPerPerson: nullInt32(c.IssueLimitPerPerson),
-		IssueLimit:          nullInt32(c.IssueLimit),
+		IssueLimitPerPerson: conv.int32(c.IssueLimitPerPerson),
+		IssueLimit:          conv.int32(c.IssueLimit),
 		Code:                nullString(c.Code),
-		MinPrice:            nullInt32(c.MinPrice),
-		ValidPeriod:         nullInt32(c.ValidPeriod),
+		MinPrice:            conv.int32(c.MinPrice),
+		ValidPeriod:         conv.int32(c.ValidPeriod),
 		Status:              uint8(c.Status),
 		StartedAt:           nullTime(c.StartedAt),
 		EndedAt:             nullTime(c.EndedAt),
-	})
+	}
+	if conv.err != nil {
+		return conv.err
+	}
+
+	res, err := r.q.UpdateCoupon(ctx, params)
 	if err != nil {
 		if isCheckViolation(err, "chk_coupon_discount_value") {
 			return domain.ErrInvalidDiscountValue

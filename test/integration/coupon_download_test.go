@@ -15,7 +15,7 @@ import (
 )
 
 // signedIn registers a customer and returns an app that carries their session.
-func signedIn(t *testing.T, app *testutil.App, email string) (*testutil.App, uint64) {
+func signedIn(t *testing.T, app *testutil.App, email string) (authed *testutil.App, customerID uint64) {
 	t.Helper()
 
 	signup := app.POST("/auth/signup", fmt.Sprintf(
